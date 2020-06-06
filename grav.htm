@@ -1,0 +1,308 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Gravity</title>
+		<style type="text/css">
+canvas {
+	border:1px solid #000;
+	float:left;
+}
+
+div {
+	float:left;
+	padding-left:5px;
+}
+
+span {
+	display:block;
+}
+
+label {
+	margin-bottom:5px;
+	display:inline-block;
+	width:200px;
+}
+
+		</style>
+	</head>
+	<body onLoad="init();">
+		<canvas id="canvas" height="500" width="500"></canvas>
+		<div>
+			<span>
+				<label for="score">Wins:</label>
+				<input id="score" type="text" value="0" readonly />
+			</span>
+			<span>
+				<label for="loose">Looses:</label>
+				<input id="loose" type="text" value="0" readonly />
+			</span>
+			<span>
+				<label for="ctime">Current time:</label>
+				<input id="ctime" type="text" value="0" readonly />
+			</span>
+			<span>
+				<label for="ltime">Your longest journey:</label>
+				<input id="ltime" type="text" value="0" readonly />
+			</span>
+		</div>
+		<script type="text/javascript">
+		
+var end_size = 20;
+		
+var c = document.getElementById("canvas");
+var s = document.getElementById("score");
+var l = document.getElementById("loose");
+var lt = document.getElementById("ltime");
+var ct = document.getElementById("ctime");
+
+var p = c.getContext("2d");
+var f = c.getBoundingClientRect();
+
+var pause = true;
+
+var planets = new Array();
+var rocket = [0, 0, 3, 0, 0];
+
+var start_point = new Array();
+var end_point = new Array();
+
+var start_vel = new Array();
+
+var target;
+
+var is_collision = false;
+
+var current_time = 0;
+
+function init() {
+	//console.log("init");
+	
+	setInterval("loop()",20);
+	c.addEventListener("mousedown", onMouseDown, false);
+	c.addEventListener("mousemove", onMouseMove, false);
+	c.addEventListener("mouseup", onMouseUp, false);
+	window.addEventListener("keydown", onKeyDown, false);
+	
+	generateLevel();
+}
+
+function onKeyDown(event) {
+	switch(event.key) {
+		case ' ':
+			if( !pause ) {
+				is_collision = true;
+				//collision();
+			} else {
+				target = -1;
+				pause = false;
+				current_time = 0;
+			}
+			break;
+			
+		case 't':
+			if( pause ) {
+				start_point = [c.width - 5, c.height/2-5];
+				end_point = [-end_size, -end_size];
+				start_vel = [-1, 0];
+				planets = new Array();
+				for( var i = 1; i < 4; i++ ) {
+					var planet = [20, i*35, i*5];
+					planets.push(planet);
+				}
+	
+				resetLevel();
+			}
+			break;
+	}
+}
+
+function onMouseMove(event) {
+	var x = event.clientX - f.left;
+	var y = event.clientY - f.top;
+	
+	if(event.buttons == 1 && target != -1) {
+		planets[target][0] = x;
+		planets[target][1] = y;
+	}
+}
+
+function onMouseDown(event) {	
+
+if(event.buttons == 1 && pause ) {
+		var x = event.clientX - f.left;
+		var y = event.clientY - f.top;
+		
+		planets.forEach(function(planet, index) {
+			if( x > planet[0] - planet[2] && x < planet[0] + planet[2] &&
+				y > planet[1] - planet[2] && y < planet[1] + planet[2] ) {
+				target = index;
+			}
+		});
+	}
+
+}
+
+function onMouseUp(event) {
+	target = -1;
+}
+
+function loop() {
+
+	
+
+	if( is_collision ) {
+		is_collision = false;
+		collision();
+	}
+
+	resetBackground();
+
+	if(!pause)calc();
+
+	paintCircle(rocket[0], rocket[1], rocket[2], "blue");
+	
+	planets.forEach(function(planet) {
+		paintCircle(planet[0], planet[1], planet[2], "black");
+	});
+	
+	paintRect(start_point[0], start_point[1], 10, 10, "green");
+	paintRect(end_point[0], end_point[1], end_size, end_size, "red");
+	
+}
+
+function calc() {
+
+	current_time++;
+	ct.value = current_time;
+
+	for(planetId = 0;planetId < planets.length;planetId++) {
+		var planet = planets[planetId];
+		var distanceX = - rocket[0] + planet[0];
+		var distanceY = - rocket[1] + planet[1];
+		var distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+		
+		if( distance <= planet[2] + rocket[2] ) {
+			collision();
+			return;
+		}
+		
+		var directionX = distanceX / distance;
+		var directionY = distanceY / distance;
+		var acceleration = planet[2] * planet[2] / distance / distance;
+		var accelerationX = acceleration * directionX;
+		var accelerationY = acceleration * directionY;
+		
+		rocket[3] += accelerationX;
+		rocket[4] += accelerationY;
+	}
+	
+	rocket[0] += rocket[3];
+	rocket[1] += rocket[4];
+	
+	if( rocket[0] < 0 ) {
+		collision();
+	}
+	if( rocket[1] < 0 ) {
+		collision();
+	}
+	if( rocket[0] > c.width ) {
+		collision();
+	}
+	if( rocket[1] > c.height ) {
+		collision();
+	}
+}
+
+function resetBackground() {
+	p.fillStyle="white";
+	p.clearRect(0, 0, c.width, c.height);
+}
+
+function paintCircle( x, y, r, c) {
+	p.beginPath();
+	p.fillStyle=c;
+	p.arc(x,y,r,0,Math.PI*2,true);
+	p.fill();
+}
+
+function paintRect(x, y, w, h, c) {
+	p.beginPath();
+	p.fillStyle=c;
+	p.fillRect(x, y, w, h);
+}
+
+function collision() {
+	pause = true;
+	
+	lt.value = parseInt(lt.value) < current_time ? current_time : lt.value;
+	
+	if( rocket[0] > end_point[0] && rocket[0] < end_point[0] + end_size &&
+		rocket[1] > end_point[1] && rocket[1] < end_point[1] + end_size ) {
+		generateLevel();
+		s.value = parseInt(s.value) + 1;
+	} else {
+		resetLevel();
+		l.value = parseInt(l.value) + 1;
+	}
+}
+
+function generateLevel() {
+	var start_side = Math.floor(Math.random() * 4);
+	do {
+		var end_side = Math.floor(Math.random() * 4);
+	} while( end_side == start_side );
+
+	if( start_side <= 1 ) {
+		var start_d = Math.random() * c.width;
+		start_point[0] = start_d;
+		start_point[1] = start_side * c.height;
+		start_vel[0] = 0;
+		start_vel[1] = start_side * -2 + 1;
+	} else {
+		var start_d = Math.random() * c.height;
+		start_point[0] = (start_side-2) * c.width;
+		start_point[1] = start_d;
+		start_vel[0] = (start_side-2) * -2 + 1;
+		start_vel[1] = 0;
+	}
+	if( end_side <= 1 ) {
+		var end_d = Math.random() * c.width;
+		end_point[0] = end_d;
+		end_point[1] = end_side * c.height;
+	} else {
+		var end_d = Math.random() * c.height;
+		end_point[0] = (end_side-2) * c.width;
+		end_point[1] = end_d;
+	}
+	start_point[0] -= 5;
+	start_point[1] -= 5;
+	end_point[0] -= end_size/2;
+	end_point[1] -= end_size/2;
+	
+	planets = new Array();
+	for( var i = 1; i < 4; i++ ) {
+		var planet = [20, i*35, i*5];
+		planets.push(planet);
+	}
+	
+	resetLevel();
+}
+
+function resetLevel() {
+	pause = true;
+	resetBackground();
+
+	//setTimeout(function() {
+		rocket[0] = start_point[0] + 5;
+		rocket[1] = start_point[1] + 5;
+		rocket[3] = start_vel[0];
+		rocket[4] = start_vel[1];
+		console.log(rocket, start_point, start_vel);
+	//}, 10);
+	
+}
+
+		</script>
+	</body>
+</html>
